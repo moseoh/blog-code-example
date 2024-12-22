@@ -1,0 +1,11 @@
+services:
+  database:
+    image: postgres:17.2
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: server
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: annotationprocessor
+    volumes:
+      - ./volume/postgres_data:/var/lib/postgresql/data
