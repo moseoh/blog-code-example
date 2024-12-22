@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: annotationprocessor
+  datasource:
+    url: jdbc:postgresql://localhost:5432/annotationprocessor
+    username: server
+    password: password
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
