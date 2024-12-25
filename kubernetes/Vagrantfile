@@ -1,0 +1,55 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  BOX_IMAGE = "gutehall/ubuntu24-04"
+  
+  # VM 구성
+  NODES = [
+    { :hostname => "master", :ip => "192.168.56.10", :memory => 2048, :cpus => 2 },
+    { :hostname => "worker1", :ip => "192.168.56.11", :memory => 2048, :cpus => 2 },
+    { :hostname => "worker2", :ip => "192.168.56.12", :memory => 2048, :cpus => 2 }
+  ]
+
+  # 각 노드 설정
+  NODES.each do |node|
+    config.vm.define node[:hostname] do |nodeconfig|
+      nodeconfig.vm.box = BOX_IMAGE
+      nodeconfig.vm.hostname = node[:hostname]
+      
+      # VMware Fusion provider 설정
+      nodeconfig.vm.provider "vmware_desktop" do |v|
+        v.memory = node[:memory]
+        v.cpus = node[:cpus]
+        v.gui = false
+      end
+
+      # 네트워크 설정
+      nodeconfig.vm.network "private_network", ip: node[:ip]
+
+      # SSH 키 설정
+      nodeconfig.vm.provision "shell" do |s|
+        ssh_pub_key = File.readlines("#{Dir.home}/.ssh/id_rsa.pub").first.strip
+        s.args = [ssh_pub_key]
+        s.inline = <<-SHELL
+          mkdir -p /root/.ssh
+          echo $1 >> /root/.ssh/authorized_keys
+          mkdir -p /home/vagrant/.ssh
+          echo $1 >> /home/vagrant/.ssh/authorized_keys
+          chown -R vagrant:vagrant /home/vagrant/.ssh
+        SHELL
+      end
+
+      # SSH 키 복사 방지
+      nodeconfig.ssh.insert_key = false
+      
+    #   # 기본 패키지 설치 및 설정
+    #   nodeconfig.vm.provision "shell", inline: <<-SHELL
+    #     apt-get update
+    #     apt-get install -y python3 python3-pip
+    #     swapoff -a
+    #     sed -i '/swap/d' /etc/fstab
+    #   SHELL
+    end
+  end
+end
