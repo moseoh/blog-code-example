@@ -1,0 +1,9 @@
+---
+public_key_path: "/Users/seongha.moon/.ssh/moseoh_master.pub"
+
+# LVM Configuration
+timeshift_volume_name: "timeshift-backup"
+timeshift_volume_size: "20G"
+
+mirror_sources_urls: "http://mirror.kakao.com/ubuntu"
+time_zone: "Asia/Seoul"

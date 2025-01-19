@@ -1,0 +1,53 @@
+---
+- name: DHCP Server
+  hosts: dhcp
+  become: true
+
+  tasks:
+    - name: ISC DHCP Server
+      block:
+        - name: Install ISC DHCP Server
+          apt:
+            name: isc-dhcp-server
+            state: present
+            update_cache: yes
+
+        - name: Ensure DHCP service is enabled
+          systemd:
+            name: isc-dhcp-server
+            enabled: yes
+            state: started
+
+        - name: Configure DHCP Server
+          template:
+            src: templates/dhcpd.conf.j2
+            dest: /etc/dhcp/dhcpd.conf
+            owner: root
+            group: root
+            mode: "0644"
+          notify: restart dhcp
+
+    - name: Netplan
+      block:
+        - name: Get primary network interface
+          shell: ip route | grep default | awk '{print $5}'
+          register: primary_interface
+          changed_when: false
+
+        - name: Create netplan configuration
+          template:
+            src: templates/netplan.yaml.j2
+            dest: /etc/netplan/00-netcfg.yaml
+            owner: root
+            group: root
+            mode: "0644"
+          notify: apply netplan
+
+  handlers:
+    - name: restart dhcp
+      systemd:
+        name: isc-dhcp-server
+        state: restarted
+
+    - name: apply netplan
+      command: netplan apply

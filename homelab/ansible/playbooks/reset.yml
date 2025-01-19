@@ -1,0 +1,89 @@
+---
+- name: Restore System to Initial State Using Timeshift
+  hosts: all
+  become: true
+  tasks:
+    # Step : Timeshift 설치 여부 확인
+    - name: Check Timeshift Installation
+      block:
+        - name: Check Timeshift Installation
+          command: which timeshift
+          register: timeshift_check
+          changed_when: false
+          failed_when: false
+          ignore_errors: true
+
+        - name: Set Timeshift installation status
+          set_fact:
+            installed_timeshift: "{{ timeshift_check.rc == 0 }}"
+
+        - name: Fail if Timeshift is not installed
+          fail:
+            msg: "Timeshift is not installed. Please install it first."
+          when: not installed_timeshift
+
+    # Step : 백업본 목록 확인
+    - name: Check Snapshot List
+      block:
+        - name: List available Timeshift snapshots
+          command: timeshift --list-snapshots
+          register: snapshot_list
+          changed_when: false
+          failed_when: false
+
+        - name: Check snapshot existence
+          set_fact:
+            has_snapshots: "{{ 'No snapshots found' not in snapshot_list.stdout }}"
+
+        - name: Fail if no snapshots exist
+          fail:
+            msg: "No snapshots exist"
+          when: not has_snapshots
+
+    # Step: 복원
+    - name: Restore Snapshot
+      block:
+        - name: Extract snapshot ID
+          set_fact:
+            snapshot_lines: "{{ snapshot_list.stdout_lines |
+              select('match', '\\d+\\s+>\\s+(\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2})') |
+              map('regex_replace', '^\\d+\\s+>\\s+(\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}).*', '\\1') |
+              list }}"
+
+        - name: Set latest snapshot if available
+          set_fact:
+            latest_snapshot: "{{ snapshot_lines[-1] }}"
+          when: snapshot_lines | length > 0
+
+        # Step : 복원 전 중요 안내사항
+        - name: Display restore warning details
+          ansible.builtin.pause:
+            prompt: |
+
+              ====================================================================
+              🚨                     중요 안내사항                              🚨
+              ====================================================================
+
+              ⚠️  스냅샷 복원 시 다음 사항을 반드시 확인해주세요:
+
+              1️⃣  복원되지 않는 디렉터리/파일
+                 📁 /home          : 사용자 홈 디렉터리
+                 📁 /tmp           : 임시 파일 디렉터리
+                 📁 /proc,/sys,/dev: 시스템 디렉터리
+                 📁 /run           : 런타임 데이터 디렉터리
+                 📁 /var/run,/lock : 프로세스 및 락 파일
+
+              2️⃣  복원 프로세스 주의사항
+                 🔄 호스트가 자동으로 재시작됩니다
+                 ⚠️ 복원 완료는 호스트 재시작 후 확인 가능합니다
+                 ❌ Ansible에서 자동 확인되지 않습니다
+
+              위 내용을 확인하셨다면 Enter를 눌러 복원을 시작하세요.
+              ====================================================================
+              Press Enter to continue...
+
+        # Step : 백업본을 사용해 시스템 복원
+        - name: Restore system using the latest snapshot
+          shell: echo -e "\n" | timeshift --restore --snapshot '{{ latest_snapshot }}' --yes --debug
+          register: restore_status
+          when: latest_snapshot is defined

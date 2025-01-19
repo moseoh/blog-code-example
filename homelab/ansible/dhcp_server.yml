@@ -1,0 +1,3 @@
+---
+- name: DHCP Server
+  ansible.builtin.import_playbook: playbooks/dhcp_server.yml

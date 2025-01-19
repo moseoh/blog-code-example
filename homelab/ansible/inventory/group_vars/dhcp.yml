@@ -1,0 +1,22 @@
+dns1: "8.8.8.8"
+dns2: "8.8.4.4"
+
+# DHCP 설정
+subnet: "172.16.0.0"
+netmask: "255.255.0.0"
+default_range_start: "172.16.0.100"
+default_range_end: "172.16.0.200"
+gateway: "192.168.0.1"
+domain: "moseoh.local"
+
+# 고정 IP 설정
+fixed_hosts:
+  macbook:
+    mac: "80:a9:97:3d:c2:38"
+    ip: "172.16.1.1"
+  server1:
+    mac: "aa:bb:cc:dd:ee:fa"
+    ip: "172.16.2.1"
+  server2:
+    mac: "aa:bb:cc:dd:ee:fb"
+    ip: "172.16.2.2"

@@ -1,0 +1,98 @@
+---
+- name: Setup Config
+  hosts: all
+  become: true
+
+  tasks:
+    # 1. Ubuntu mirror 변경
+    - name: Update apt sources with Kakao mirror
+      ansible.builtin.replace:
+        path: "/etc/apt/sources.list.d/ubuntu.sources"
+        regexp: "^URIs: http[s]?://[a-zA-Z0-9.-]+archive.ubuntu.com/ubuntu"
+        replace: "URIs: {{ mirror_sources_urls }}"
+      notify: update apt cache
+
+    # 2. APT 업데이트 및 업그레이드
+    - name: Update and upgrade apt packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+
+    # 3. 타임존 설정
+    - name: Local settings setup
+      block:
+        - name: Set timezone to {{ time_zone }}
+          command: timedatectl set-timezone {{ time_zone }}
+          register: timezone_change
+
+        - name: Enable and start timesyncd
+          systemd:
+            name: systemd-timesyncd
+            state: started
+            enabled: yes
+
+        - name: Force time sync
+          command: systemctl restart systemd-timesyncd
+
+    # 4. SSH 키 추가 및 보안 설정
+    - name: SSH key setup and security
+      block:
+        - name: Get real user home directory
+          shell: echo ~{{ ansible_user }}
+          register: user_home
+          changed_when: false
+
+        - name: Ensure .ssh directory and authorized_keys exist
+          file:
+            path: "{{ item.path }}"
+            state: "{{ item.state }}"
+            mode: "{{ item.mode }}"
+            owner: "{{ ansible_user }}"
+            group: "{{ ansible_user }}"
+          with_items:
+            - {
+                path: "{{ user_home.stdout }}/.ssh",
+                state: directory,
+                mode: "0700",
+              }
+            - {
+                path: "{{ user_home.stdout }}/.ssh/authorized_keys",
+                state: touch,
+                mode: "0600",
+              }
+
+        - name: Add SSH public key to authorized_keys
+          lineinfile:
+            path: "{{ user_home.stdout }}/.ssh/authorized_keys"
+            line: "{{ lookup('file', '{{ public_key_path }}') }}"
+            create: yes
+            mode: "0600"
+            owner: "{{ ansible_user }}"
+            group: "{{ ansible_user }}"
+            regexp: "{{ lookup('file', '{{ public_key_path }}') | regex_escape() }}"
+
+        - name: Disable password authentication in a new config file
+          copy:
+            dest: /etc/ssh/sshd_config.d/00-disable-password-auth.conf
+            content: |
+              # Disable password authentication
+              PasswordAuthentication no
+            owner: root
+            group: root
+            mode: "0600"
+      notify: restart ssh
+
+  handlers:
+    - name: update apt cache
+      apt:
+        update_cache: yes
+
+    - name: restart timesyncd
+      systemd:
+        name: systemd-timesyncd
+        state: restarted
+
+    - name: restart ssh
+      systemd:
+        name: ssh
+        state: restarted

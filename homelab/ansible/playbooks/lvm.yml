@@ -1,0 +1,77 @@
+---
+- name: Configure LVM and Manage Logical Volumes
+  hosts: all
+  become: true
+  tasks:
+    # Step 1: Refresh LVM Metadata
+    - name: Refresh LVM Metadata
+      block:
+        - name: Run pvscan to refresh LVM metadata
+          command: pvscan
+          changed_when: false
+
+        - name: Run vgscan to refresh VG metadata
+          command: vgscan
+          changed_when: false
+
+        - name: Run lvscan to refresh LV metadata
+          command: lvscan
+          changed_when: false
+
+    # Step : Volume Group 여유공간 확인
+    - name: Check VG Free Space
+      block:
+        - name: Get VG Free Space
+          command: vgs --noheadings -o vg_free --units g ubuntu-vg
+          register: vg_free_space
+          changed_when: false
+
+        - name: Debug VG Free Space
+          debug:
+            msg: "Available Free Space in VG: {{ vg_free_space.stdout.strip() }}"
+
+    # Step : 확장 가능한 공간이 있다면 Root Volume 확장
+    - name: Extend Root Logical Volume
+      when: vg_free_space.stdout.strip() != "0g"
+      block:
+        - name: Extend the root Logical Volume if needed
+          command: lvextend -l +100%FREE /dev/ubuntu-vg/ubuntu-lv
+
+        - name: Resize the filesystem on the root Logical Volume
+          command: resize2fs /dev/ubuntu-vg/ubuntu-lv
+
+    - name: Check Timeshift Backup Volume
+      block:
+        - name: Check if {{ timeshift_volume_name }} LV exists
+          command: lvs ubuntu-vg/{{ timeshift_volume_name }}
+          register: timeshift_check
+          failed_when: false
+          changed_when: false
+
+        - name: Set fact for timeshift LV existence
+          set_fact:
+            timeshift_exists: "{{ timeshift_check.rc == 0 }}"
+
+    # Step : Timeshift Backup Volume 설정
+    - name: Configure Timeshift Backup Volume
+      when: not timeshift_exists
+      block:
+        - name: Create Logical Volume for Timeshift Backup
+          lvol:
+            vg: ubuntu-vg
+            lv: "{{ timeshift_volume_name }}"
+            size: "{{ timeshift_volume_size }}"
+          register: timeshift_lv
+
+        - name: Format the Timeshift Logical Volume with ext4
+          filesystem:
+            fstype: ext4
+            dev: /dev/ubuntu-vg/{{ timeshift_volume_name }}
+          when: timeshift_lv.changed
+
+        - name: Mount the Timeshift Logical Volume
+          mount:
+            path: /mnt/{{ timeshift_volume_name }}
+            src: /dev/ubuntu-vg/{{ timeshift_volume_name }}
+            fstype: ext4
+            state: mounted
