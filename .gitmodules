@@ -1,0 +1,3 @@
+[submodule "homelab/kubespray"]
+	path = homelab/kubespray
+	url = https://github.com/kubernetes-sigs/kubespray.git
