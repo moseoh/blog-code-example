@@ -20,6 +20,7 @@ ssh-keygen -t rsa -b 4096 -C "azqazq195@gmail.com" -f ~/.ssh/moseoh_master
 
 ```shell
 # ./inventory/inventory.ini > host 정보 수정
+# host 에 한번 접속하여 kwon_hosts에 정보를 갱신해야함.
 ansible init -i inventory/inventory.ini -m ping
 ansible dhcp -i inventory/inventory.ini -m ping
 

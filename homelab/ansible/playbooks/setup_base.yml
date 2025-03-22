@@ -1,9 +1,7 @@
 ---
-# - name: Initialize Logical Volume
-#   import_playbook: init_lvm.yml
-
-# - name: Initialize Snapshot
-#   import_playbook: init_snapshot.yml
-
+- name: Initialize Logical Volume
+  import_playbook: lvm.yml
+- name: Initialize Snapshot
+  import_playbook: snapshot.yml
 - name: Initialize Config
-  import_playbook: init_config.yml
+  import_playbook: config.yml

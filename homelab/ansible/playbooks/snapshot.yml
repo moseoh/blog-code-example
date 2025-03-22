@@ -17,10 +17,24 @@
           set_fact:
             installed_timeshift: "{{ timeshift_check.rc == 0 }}"
 
-        - name: Fail if Timeshift is not installed
-          fail:
-            msg: "Timeshift is not installed. Please install it first."
-          when: not installed_timeshift
+    - name: Install Timeshift if not installed
+      when: not installed_timeshift
+      block:
+        - name: Update APT package cache
+          apt:
+            update_cache: yes
+
+        - name: Install Timeshift package
+          apt:
+            name: timeshift
+            state: present
+
+        - name: Verify Timeshift installation
+          command: which timeshift
+          register: verify_timeshift
+          changed_when: false
+          failed_when: verify_timeshift.rc != 0
+          ignore_errors: false
 
     # Step : 기존 스냅샷 확인 및 상태 설정
     - name: Check Existing Snapshots

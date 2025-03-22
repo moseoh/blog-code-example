@@ -1,0 +1,30 @@
+# 개인 저장소의 경우 저장소 url
+githubConfigUrl: "https://github.com/moseoh/build-test"
+# githubConfigUrl: "https://github.com/org"
+# githubConfigUrl: "https://github.com/enterprise"
+githubConfigSecret: arc-secret
+
+maxRunners: 1
+minRunners: 1
+
+runnerGroup: "default"
+# runs-on: 해당 이름
+runnerScaleSetName: "arc"
+
+containerMode:
+  type: "dind"
+
+template:
+  spec:
+    containers:
+      - name: runner
+        image: ghcr.io/actions/actions-runner:latest
+        command:
+          - /home/runner/run.sh
+        resources:
+          limits:
+            cpu: 4
+            memory: 4Gi
+          requests:
+            cpu: 1
+            memory: 1Gi
