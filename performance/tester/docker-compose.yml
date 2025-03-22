@@ -1,0 +1,10 @@
+services:
+  k6:
+    image: grafana/k6:latest
+    networks:
+      - k6
+    volumes:
+      - ./scripts:/scripts
+
+networks:
+  k6:
