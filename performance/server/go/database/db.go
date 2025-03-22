@@ -20,6 +20,11 @@ func InitDB(host, port, user, password, dbname string) (*sql.DB, error) {
 		return nil, err
 	}
 
+	// 연결 풀 설정
+	db.SetMaxOpenConns(100)   // 최대 동시 연결 수
+	db.SetMaxIdleConns(20)    // 유휴 상태로 유지할 최대 연결 수
+	db.SetConnMaxLifetime(30) // 연결 최대 수명 (30초)
+
 	// 연결 테스트
 	if err := db.Ping(); err != nil {
 		return nil, err
@@ -48,4 +53,4 @@ func CreateTables(db *sql.DB) error {
 
 	log.Println("테이블 생성 완료")
 	return nil
-} 
+}

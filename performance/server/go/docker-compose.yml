@@ -1,6 +1,6 @@
 services:
   go-database:
-    image: postgres:latest
+    image: postgres:17
     container_name: go-database
     restart: always
     environment:
@@ -9,8 +9,6 @@ services:
       POSTGRES_DB: postgres
     ports:
       - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
 
   go-server:
     build:
@@ -28,6 +26,3 @@ services:
       DB_NAME: postgres
     depends_on:
       - go-database
-
-volumes:
-  postgres_data:

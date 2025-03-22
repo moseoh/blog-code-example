@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 )
 
@@ -16,56 +17,62 @@ type Board struct {
 // CreateBoard 새로운 게시글을 생성합니다
 func CreateBoard(db *sql.DB, title, content string) (Board, error) {
 	var board Board
-	
+
+	// 트랜잭션 시작
+	tx, err := db.Begin()
+	if err != nil {
+		return board, fmt.Errorf("트랜잭션 시작 실패: %v", err)
+	}
+	defer tx.Rollback() // 실패 시 롤백
+
 	query := `
 	INSERT INTO boards (title, content)
 	VALUES ($1, $2)
 	RETURNING id, title, content, created_at
 	`
-	
-	err := db.QueryRow(query, title, content).Scan(
+
+	err = tx.QueryRow(query, title, content).Scan(
 		&board.ID,
 		&board.Title,
 		&board.Content,
 		&board.CreatedAt,
 	)
-	
-	return board, err
+	if err != nil {
+		return board, fmt.Errorf("게시글 생성 실패: %v", err)
+	}
+
+	// 트랜잭션 커밋
+	if err = tx.Commit(); err != nil {
+		return board, fmt.Errorf("트랜잭션 커밋 실패: %v", err)
+	}
+
+	return board, nil
 }
 
-// GetAllBoards 모든 게시글을 가져옵니다
-func GetAllBoards(db *sql.DB) ([]Board, error) {
+// GetLatestBoard 가장 최근 게시글을 가져옵니다
+func GetLatestBoard(db *sql.DB) (Board, error) {
 	query := `
 	SELECT id, title, content, created_at
 	FROM boards
 	ORDER BY created_at DESC
+	LIMIT 1
 	`
-	
-	rows, err := db.Query(query)
+
+	var board Board
+	err := db.QueryRow(query).Scan(
+		&board.ID,
+		&board.Title,
+		&board.Content,
+		&board.CreatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return Board{}, nil
+	}
+
 	if err != nil {
-		return nil, err
+		return Board{}, err
 	}
-	defer rows.Close()
-	
-	var boards []Board
-	
-	for rows.Next() {
-		var board Board
-		err := rows.Scan(
-			&board.ID,
-			&board.Title,
-			&board.Content,
-			&board.CreatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-		boards = append(boards, board)
-	}
-	
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	
-	return boards, nil
-} 
+
+	return board, nil
+}

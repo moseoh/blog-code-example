@@ -1,4 +1,4 @@
-module your-project
+module github.com/seongha-moon/blog-code-example/performance/server/go
 
 go 1.21
 
@@ -8,4 +8,4 @@ require (
 	github.com/lib/pq v1.10.9
 )
 
-require golang.org/x/net v0.18.0 // indirect 
+require golang.org/x/net v0.18.0 // indirect

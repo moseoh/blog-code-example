@@ -7,8 +7,8 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"your-project/server/go/database"
-	"your-project/server/go/handlers"
+	"github.com/seongha-moon/blog-code-example/performance/server/go/database"
+	"github.com/seongha-moon/blog-code-example/performance/server/go/handlers"
 )
 
 func main() {
@@ -33,18 +33,18 @@ func main() {
 
 	// 라우터 설정
 	r := mux.NewRouter()
-	
+
 	// REST API 엔드포인트
 	r.HandleFunc("/api/boards", handlers.CreateBoardHandler(db)).Methods("POST")
 	r.HandleFunc("/api/boards", handlers.GetBoardsHandler(db)).Methods("GET")
-	
+
 	// WebSocket 엔드포인트
 	r.HandleFunc("/ws/boards", handlers.WebsocketBoardsHandler(db))
-	
+
 	// 서버 실행
 	port := getEnv("PORT", "8080")
 	log.Printf("%s 포트에서 서버 시작...", port)
-	if err := http.ListenAndServe(":" + port, r); err != nil {
+	if err := http.ListenAndServe(":"+port, r); err != nil {
 		log.Fatalf("서버 시작 실패: %v", err)
 	}
 }
@@ -56,4 +56,4 @@ func getEnv(key, fallback string) string {
 		return fallback
 	}
 	return value
-} 
+}

@@ -5,13 +5,18 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
-	"time"
 
 	"github.com/gorilla/websocket"
 
-	"your-project/server/go/models"
+	"github.com/seongha-moon/blog-code-example/performance/server/go/models"
 )
+
+// ErrorResponse represents an error response
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
 
 // WebSocket 연결을 업그레이드하는 upgrader
 var upgrader = websocket.Upgrader{
@@ -32,94 +37,133 @@ type CreateBoardRequest struct {
 	Content string `json:"content"`
 }
 
-// CreateBoardHandler 새 게시글을 생성하는 핸들러
+// sendErrorResponse sends a JSON error response
+func sendErrorResponse(w http.ResponseWriter, message string, status int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(ErrorResponse{Error: message})
+}
+
+// CreateBoardHandler creates a new board
 func CreateBoardHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// 요청 본문 파싱
+		// Parse request body
 		var req CreateBoardRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "잘못된 요청 형식", http.StatusBadRequest)
+			log.Printf("Failed to parse request body: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error":"Invalid request"}`))
 			return
 		}
 
-		// 유효성 검사
+		// Validate request
 		if req.Title == "" || req.Content == "" {
-			http.Error(w, "제목과 내용은 필수입니다", http.StatusBadRequest)
+			log.Printf("Validation failed: title or content is empty")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error":"Missing fields"}`))
 			return
 		}
 
-		// 게시글 생성
+		// Create board
 		board, err := models.CreateBoard(db, req.Title, req.Content)
 		if err != nil {
-			log.Printf("게시글 생성 오류: %v", err)
-			http.Error(w, "게시글 생성 실패", http.StatusInternalServerError)
+			log.Printf("Failed to create board: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error":"Server error"}`))
 			return
 		}
 
-		// 모든 WebSocket 클라이언트에게 새 게시글 통지
-		go broadcastBoardUpdate(board)
+		// Broadcast to WebSocket clients
+		go func() {
+			if err := broadcastBoardUpdate(board); err != nil {
+				log.Printf("Failed to broadcast update: %v", err)
+			}
+		}()
 
-		// 응답 전송
+		// Send response
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(board)
 	}
 }
 
-// GetBoardsHandler 모든 게시글을 조회하는 핸들러
+// GetBoardsHandler retrieves the latest board
 func GetBoardsHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// 게시글 목록 조회
-		boards, err := models.GetAllBoards(db)
+		// Get latest board
+		board, err := models.GetLatestBoard(db)
 		if err != nil {
-			log.Printf("게시글 조회 오류: %v", err)
-			http.Error(w, "게시글 조회 실패", http.StatusInternalServerError)
+			log.Printf("Failed to get board: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error":"Server error"}`))
 			return
 		}
 
-		// 응답 전송
+		// Send response
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(boards)
+
+		// Return empty object if no board exists
+		if board.ID == 0 {
+			w.Write([]byte("{}"))
+			return
+		}
+
+		// Just use the standard encoder
+		err = json.NewEncoder(w).Encode(board)
+		if err != nil {
+			log.Printf("Failed to encode response: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error":"Server error"}`))
+		}
 	}
 }
 
-// WebsocketBoardsHandler WebSocket을 통해 게시글 업데이트를 제공하는 핸들러
+// escapeString escapes special JSON characters
+func escapeString(s string) string {
+	s = strings.Replace(s, "\\", "\\\\", -1)
+	s = strings.Replace(s, "\"", "\\\"", -1)
+	s = strings.Replace(s, "\n", "\\n", -1)
+	s = strings.Replace(s, "\r", "\\r", -1)
+	s = strings.Replace(s, "\t", "\\t", -1)
+	return s
+}
+
+// WebsocketBoardsHandler handles WebSocket connections
 func WebsocketBoardsHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// HTTP 연결을 WebSocket으로 업그레이드
+		// Upgrade HTTP connection to WebSocket
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			log.Printf("WebSocket 업그레이드 실패: %v", err)
+			log.Printf("Failed to upgrade WebSocket: %v", err)
 			return
 		}
 		defer conn.Close()
 
-		// 클라이언트 등록
+		// Register client
 		clientsMutex.Lock()
 		clients[conn] = true
 		clientsMutex.Unlock()
 
-		// 현재 모든 게시글 전송
-		boards, err := models.GetAllBoards(db)
+		// Send current latest board
+		board, err := models.GetLatestBoard(db)
 		if err != nil {
-			log.Printf("게시글 조회 오류: %v", err)
+			log.Printf("Failed to get board: %v", err)
 			return
 		}
 
-		if err := conn.WriteJSON(boards); err != nil {
-			log.Printf("WebSocket 메시지 전송 실패: %v", err)
+		if err := conn.WriteJSON(board); err != nil {
+			log.Printf("Failed to send WebSocket message: %v", err)
 			clientsMutex.Lock()
 			delete(clients, conn)
 			clientsMutex.Unlock()
 			return
 		}
 
-		// 클라이언트 연결이 종료될 때까지 대기
+		// Wait for client disconnect
 		for {
-			// 핑 메시지 주기적 전송을 위한 빈 메시지 수신
 			_, _, err := conn.ReadMessage()
 			if err != nil {
-				log.Printf("WebSocket 읽기 오류: %v", err)
+				log.Printf("WebSocket read error: %v", err)
 				clientsMutex.Lock()
 				delete(clients, conn)
 				clientsMutex.Unlock()
@@ -129,17 +173,19 @@ func WebsocketBoardsHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-// broadcastBoardUpdate 모든 WebSocket 클라이언트에게 게시글 업데이트를 전송
-func broadcastBoardUpdate(board models.Board) {
+// broadcastBoardUpdate sends board updates to all WebSocket clients
+func broadcastBoardUpdate(board models.Board) error {
 	clientsMutex.Lock()
 	defer clientsMutex.Unlock()
 
+	var lastErr error
 	for client := range clients {
-		err := client.WriteJSON(board)
-		if err != nil {
-			log.Printf("WebSocket 메시지 전송 오류: %v", err)
+		if err := client.WriteJSON(board); err != nil {
+			log.Printf("Failed to send WebSocket message: %v", err)
 			client.Close()
 			delete(clients, client)
+			lastErr = err
 		}
 	}
-} 
+	return lastErr
+}
