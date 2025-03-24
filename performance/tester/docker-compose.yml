@@ -38,6 +38,7 @@ services:
       - K6_FLUSH_INTERVAL=5s
     volumes:
       - ./scripts:/scripts
+      - ../server/proto:/proto
 
 networks:
   k6:

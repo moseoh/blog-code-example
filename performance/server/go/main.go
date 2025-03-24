@@ -2,58 +2,81 @@ package main
 
 import (
 	"log"
+	"net"
 	"net/http"
 	"os"
 
 	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
+	"google.golang.org/grpc"
 
 	"github.com/seongha-moon/blog-code-example/performance/server/go/database"
 	"github.com/seongha-moon/blog-code-example/performance/server/go/handlers"
+	pb "github.com/seongha-moon/blog-code-example/performance/server/go/proto"
 )
 
 func main() {
-	// 환경 변수로부터 DB 설정 가져오기
-	dbHost := getEnv("DB_HOST", "postgres")
-	dbPort := getEnv("DB_PORT", "5432")
-	dbUser := getEnv("DB_USER", "postgres")
-	dbPassword := getEnv("DB_PASSWORD", "postgres")
-	dbName := getEnv("DB_NAME", "postgres")
+	// Database connection
+	dbHost := os.Getenv("DB_HOST")
+	if dbHost == "" {
+		dbHost = "localhost"
+	}
+	dbPort := os.Getenv("DB_PORT")
+	if dbPort == "" {
+		dbPort = "5432"
+	}
+	dbUser := os.Getenv("DB_USER")
+	if dbUser == "" {
+		dbUser = "postgres"
+	}
+	dbPassword := os.Getenv("DB_PASSWORD")
+	if dbPassword == "" {
+		dbPassword = "postgres"
+	}
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" {
+		dbName = "postgres"
+	}
 
-	// 데이터베이스 연결
+	// Initialize database
 	db, err := database.InitDB(dbHost, dbPort, dbUser, dbPassword, dbName)
 	if err != nil {
-		log.Fatalf("데이터베이스 연결 실패: %v", err)
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
 
-	// 테이블 생성
+	// Create tables
 	if err := database.CreateTables(db); err != nil {
-		log.Fatalf("테이블 생성 실패: %v", err)
+		log.Fatalf("Failed to create tables: %v", err)
 	}
 
-	// 라우터 설정
-	r := mux.NewRouter()
+	// Initialize servers
+	wsServer := handlers.NewWebSocketServer(db)
+	grpcServer := handlers.NewBoardServer(db)
 
-	// REST API 엔드포인트
+	// HTTP & WebSocket server
+	r := mux.NewRouter()
 	r.HandleFunc("/api/boards", handlers.CreateBoardHandler(db)).Methods("POST")
 	r.HandleFunc("/api/boards", handlers.GetBoardsHandler(db)).Methods("GET")
+	r.HandleFunc("/ws/boards", wsServer.HandleWebSocket)
 
-	// WebSocket 엔드포인트
-	r.HandleFunc("/ws/boards", handlers.WebsocketBoardsHandler(db))
+	// Start gRPC server
+	go func() {
+		lis, err := net.Listen("tcp", ":50051")
+		if err != nil {
+			log.Fatalf("Failed to listen for gRPC: %v", err)
+		}
+		s := grpc.NewServer()
+		pb.RegisterBoardServiceServer(s, grpcServer)
+		log.Printf("Starting gRPC server on :50051")
+		if err := s.Serve(lis); err != nil {
+			log.Fatalf("Failed to serve gRPC: %v", err)
+		}
+	}()
 
-	// 서버 실행
-	port := getEnv("PORT", "8080")
-	log.Printf("%s 포트에서 서버 시작...", port)
-	if err := http.ListenAndServe(":"+port, r); err != nil {
-		log.Fatalf("서버 시작 실패: %v", err)
+	// Start HTTP & WebSocket server
+	log.Printf("Starting HTTP & WebSocket server on :8080")
+	if err := http.ListenAndServe(":8080", r); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
 	}
-}
-
-// 환경 변수를 가져오는 유틸리티 함수
-func getEnv(key, fallback string) string {
-	value := os.Getenv(key)
-	if value == "" {
-		return fallback
-	}
-	return value
 }

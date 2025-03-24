@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strings"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -35,13 +34,6 @@ var clientsMutex sync.Mutex
 type CreateBoardRequest struct {
 	Title   string `json:"title"`
 	Content string `json:"content"`
-}
-
-// sendErrorResponse sends a JSON error response
-func sendErrorResponse(w http.ResponseWriter, message string, status int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(ErrorResponse{Error: message})
 }
 
 // CreateBoardHandler creates a new board
@@ -116,16 +108,6 @@ func GetBoardsHandler(db *sql.DB) http.HandlerFunc {
 			w.Write([]byte(`{"error":"Server error"}`))
 		}
 	}
-}
-
-// escapeString escapes special JSON characters
-func escapeString(s string) string {
-	s = strings.Replace(s, "\\", "\\\\", -1)
-	s = strings.Replace(s, "\"", "\\\"", -1)
-	s = strings.Replace(s, "\n", "\\n", -1)
-	s = strings.Replace(s, "\r", "\\r", -1)
-	s = strings.Replace(s, "\t", "\\t", -1)
-	return s
 }
 
 // WebsocketBoardsHandler handles WebSocket connections

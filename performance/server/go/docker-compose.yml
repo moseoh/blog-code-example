@@ -18,6 +18,7 @@ services:
     restart: always
     ports:
       - "8080:8080"
+      - "50051:50051"
     environment:
       DB_HOST: go-database
       DB_PORT: 5432
