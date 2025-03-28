@@ -1,7 +1,10 @@
 services:
   sample-java-server:
     container_name: sample-java-server
-    build: .
+    build:
+      context: .
+      args:
+        OTEL_ENDPOINT: "http://apm-otel-collector:4317"
     depends_on:
       - sample-java-database
     ports:
@@ -9,6 +12,10 @@ services:
     environment:
       DATABASE_HOST: "sample-java-database"
       DATABASE_PORT: "5432"
+      OTEL_ENDPOINT: "http://apm-otel-collector:4317"
+    networks:
+      - default
+      - otel-java
 
   sample-java-database:
     container_name: sample-java-database
@@ -24,3 +31,10 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+    networks:
+      - default
+
+networks:
+  default:
+  otel-java:
+    name: otel-java
