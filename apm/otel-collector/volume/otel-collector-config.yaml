@@ -1,0 +1,27 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317 # ✅ 이 부분을 반드시 명시적으로 추가
+      http:
+        endpoint: 0.0.0.0:4318 # ✅ 마찬가지로 명시적으로 추가
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+
+exporters:
+  otlp/jaeger:
+    endpoint: jaeger:4317  # ✅ Jaeger의 올바른 OTLP-gRPC 포트로 수정!
+    tls:
+      insecure: true
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlp/jaeger, debug]
