@@ -4,14 +4,15 @@ services:
     container_name: apm-jaeger
     image: jaegertracing/all-in-one:latest
     ports:
-      - "16686:16686"   # UI
-      - "14250:14250"   # gRPC
-      - "4317:4317"     # ✅ OTLP-gRPC를 위한 포트 추가
+      - "16686:16686" # UI
+      - "14250:14250" # gRPC
+      - "4317:4317" # ✅ OTLP-gRPC를 위한 포트 추가
     environment:
       - COLLECTOR_OTLP_ENABLED=true
     networks:
       - default
       - otel-java
+      - otel-python
 
   # OpenTelemetry Collector
   otel-collector:
@@ -31,9 +32,13 @@ services:
     networks:
       - default
       - otel-java
+      - otel-python
 
 networks:
   default:
   otel-java:
     external: true
     name: otel-java
+  otel-python:
+    external: true
+    name: otel-python

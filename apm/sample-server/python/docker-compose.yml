@@ -3,8 +3,6 @@ services:
     container_name: sample-python-server
     build:
       context: .
-      args:
-        OTEL_ENDPOINT: "http://apm-otel-collector:4317"
     ports:
       - "8002:8000"
     environment:
