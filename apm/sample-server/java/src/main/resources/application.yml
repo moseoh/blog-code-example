@@ -3,9 +3,9 @@ spring:
     name: sample
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://${DATABASE_HOST:localhost}:${DATABASE_PORT:45432}/sample
-    username: sample
-    password: sample
+    url: jdbc:postgresql://${DATABASE_HOST:localhost}:${DATABASE_PORT:45432}/${DATABASE_NAME:sample}
+    username: ${DATABASE_USER:sample}
+    password: ${DATABASE_USER:sample}
   jpa:
     hibernate:
       ddl-auto: update
@@ -13,4 +13,4 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect 
+        dialect: org.hibernate.dialect.PostgreSQLDialect
