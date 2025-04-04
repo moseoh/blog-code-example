@@ -1,0 +1,76 @@
+- name: Initialize Ubuntu 24.04 server config
+  hosts: all
+  become: true
+
+  tasks:
+    # 🧭 시스템 기본 설정 (TimeZone 등)
+    - name: System setup
+      block:
+        - name: Set timezone to Asia/Seoul
+          timezone:
+            name: "{{ timezone }}"
+
+    # 📦 패키지 및 APT 미러 설정
+    - name: Package management
+      block:
+        - name: Replace APT mirror
+          template:
+            src: templates/ubuntu.sources.j2
+            dest: /etc/apt/sources.list.d/ubuntu.sources
+            owner: root
+            group: root
+            mode: "0644"
+          notify: Update apt cache
+
+        - name: Ensure default packages are installed
+          apt:
+            name: "{{ default_packages }}"
+            state: present
+            update_cache: yes
+
+        - name: Ensure unwanted packages are absent
+          apt:
+            name: "{{ remove_packages }}"
+            state: absent
+            update_cache: yes
+
+    # 🔐 SSH 키 등록 및 보안 설정
+    - name: SSH setup and hardening
+      block:
+        - name: Get real user home directory
+          shell: echo ~{{ ansible_user }}
+          register: user_home
+          changed_when: false
+
+        - name: Ensure .ssh directory exists for target user
+          file:
+            path: "{{ user_home.stdout }}/.ssh"
+            state: directory
+            owner: "{{ ansible_user }}"
+            group: "{{ ansible_user }}"
+            mode: "0700"
+
+        - name: Add public key to authorized_keys
+          authorized_key:
+            user: "{{ ansible_user }}"
+            state: present
+            key: "{{ lookup('file', public_key_path) }}"
+
+        - name: Disable PasswordAuthentication via sshd_config.d
+          template:
+            src: templates/00-disable-password.conf.j2
+            dest: /etc/ssh/sshd_config.d/00-disable-password.conf
+            owner: root
+            group: root
+            mode: "0644"
+          notify: Restart SSH
+
+  handlers:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Restart SSH
+      service:
+        name: ssh
+        state: restarted

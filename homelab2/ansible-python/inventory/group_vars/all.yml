@@ -1,0 +1,12 @@
+---
+hostname: "worker"
+timezone: "Asia/Seoul"
+
+public_key_path: "/Users/seongha.moon/.ssh/moseoh_master.pub"
+
+ubuntu_mirror: "http://mirror.kakao.com/ubuntu"
+ubuntu_components: "main restricted universe multiverse"
+default_packages:
+  - vim
+remove_packages:
+  - htop
