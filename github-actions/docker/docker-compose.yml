@@ -1,13 +1,16 @@
 services:
   docker-runner-1:
-    image: myoung34/github-runner:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: docker-runner-1
     restart: unless-stopped
     environment:
+      - OWNER=${OWNER}
+      - REPO=${REPO}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
       - RUNNER_NAME=docker-runner-1
-      - RUNNER_TOKEN=${RUNNER_TOKEN}
-      - RUNNER_REPOSITORY_URL=${RUNNER_REPOSITORY_URL}
-      - RUNNER_WORK_DIRECTORY=${RUNNER_WORK_DIRECTORY}
+      - RUNNER_LABELS=docker-runner-1
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     env_file:
@@ -22,14 +25,17 @@ services:
           memory: 512M
 
   docker-runner-2:
-    image: myoung34/github-runner:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: docker-runner-2
     restart: unless-stopped
     environment:
+      - OWNER=${OWNER}
+      - REPO=${REPO}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
       - RUNNER_NAME=docker-runner-2
-      - RUNNER_TOKEN=${RUNNER_TOKEN}
-      - RUNNER_REPOSITORY_URL=${RUNNER_REPOSITORY_URL}
-      - RUNNER_WORK_DIRECTORY=${RUNNER_WORK_DIRECTORY}
+      - RUNNER_LABELS=docker-runner-2
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     env_file:
