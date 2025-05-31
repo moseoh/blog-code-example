@@ -15,14 +15,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     env_file:
       - .env
-    deploy:
-      resources:
-        limits:
-          cpus: "1"
-          memory: 1G
-        reservations:
-          cpus: "0.5"
-          memory: 512M
 
   docker-runner-2:
     build:
@@ -40,11 +32,3 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     env_file:
       - .env
-    deploy:
-      resources:
-        limits:
-          cpus: "1"
-          memory: 1G
-        reservations:
-          cpus: "0.5"
-          memory: 512M
