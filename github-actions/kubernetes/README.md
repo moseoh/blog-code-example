@@ -22,6 +22,11 @@ curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 # cluster 생성
 k3d cluster create arc-cluster --agents 2
 
+# local pvc 생성
+helm repo add openebs https://openebs.github.io/openebs
+helm repo update
+helm install openebs openebs/openebs -n openebs --create-namespace
+
 # ARC Controller 배포
 NAMESPACE="arc-systems"
 helm install arc \
@@ -39,5 +44,6 @@ helm install "${INSTALLATION_NAME}" \
     --create-namespace \
     --set githubConfigUrl="${GITHUB_CONFIG_URL}" \
     --set githubConfigSecret.github_token="${GITHUB_PAT}" \
+    -f values.yaml \
     oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set
 ```
