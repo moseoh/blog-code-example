@@ -37,8 +37,8 @@ helm install arc \
 # ARC Runner Set 배포
 INSTALLATION_NAME="k8s"
 NAMESPACE="arc-runners"
-GITHUB_CONFIG_URL="https://github.com/<your_enterprise/org/repo>"
-GITHUB_PAT="<PAT>"
+GITHUB_CONFIG_URL="https://github.com"
+GITHUB_PAT="PAT"
 helm install "${INSTALLATION_NAME}" \
     --namespace "${NAMESPACE}" \
     --create-namespace \
@@ -46,4 +46,13 @@ helm install "${INSTALLATION_NAME}" \
     --set githubConfigSecret.github_token="${GITHUB_PAT}" \
     -f values.yaml \
     oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set
+
+# ARC Runner Set 삭제
+
+```shell
+# ARC Runner Set 삭제
+helm uninstall "${INSTALLATION_NAME}" --namespace "${NAMESPACE}"
+
+# 네임스페이스 삭제 (선택사항)
+kubectl delete namespace "${NAMESPACE}"
 ```
