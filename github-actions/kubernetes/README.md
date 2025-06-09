@@ -22,7 +22,7 @@ curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 # cluster 생성
 k3d cluster create arc-cluster --agents 2
 
-# local pvc 생성
+# OpenEBS 스토리지 프로바이더 설치
 helm repo add openebs https://openebs.github.io/openebs
 helm repo update
 helm install openebs openebs/openebs -n openebs --create-namespace
@@ -35,17 +35,19 @@ helm install arc \
   oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set-controller
 
 # ARC Runner Set 배포
+helm dependency update ./arc-runners
+
 INSTALLATION_NAME="k8s"
 NAMESPACE="arc-runners"
-GITHUB_CONFIG_URL="https://github.com"
-GITHUB_PAT="PAT"
+GITHUB_CONFIG_URL=""
+GITHUB_PAT=""
 helm install "${INSTALLATION_NAME}" \
     --namespace "${NAMESPACE}" \
     --create-namespace \
-    --set githubConfigUrl="${GITHUB_CONFIG_URL}" \
-    --set githubConfigSecret.github_token="${GITHUB_PAT}" \
-    -f values.yaml \
-    oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set
+    --set gha-runner-scale-set.githubConfigUrl="${GITHUB_CONFIG_URL}" \
+    --set gha-runner-scale-set.githubConfigSecret.github_token="${GITHUB_PAT}" \
+    -f ./arc-runners/values.yaml \
+    ./arc-runners
 
 # ARC Runner Set 삭제
 
