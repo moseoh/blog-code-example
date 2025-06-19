@@ -21,6 +21,8 @@ curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 ```shell
 # cluster 생성
 k3d cluster create arc-cluster --agents 2
+# nfs network 추가해서 실행하기
+# k3d cluster create my-nfs-cluster --network nfs-server-project_nfs-net
 
 # OpenEBS 스토리지 프로바이더 설치
 helm repo add openebs https://openebs.github.io/openebs
@@ -51,10 +53,28 @@ helm install "${INSTALLATION_NAME}" \
 
 # ARC Runner Set 삭제
 
-```shell
 # ARC Runner Set 삭제
 helm uninstall "${INSTALLATION_NAME}" --namespace "${NAMESPACE}"
 
 # 네임스페이스 삭제 (선택사항)
 kubectl delete namespace "${NAMESPACE}"
+```
+
+## PV Architecture
+
+```mermaid
+graph TD
+    subgraph "Actions Runner Pods"
+        Runner1["Runner Pod 1"];
+        Runner2["Runner Pod 2"];
+        Runner3["..."];
+    end
+
+    subgraph "Internal NFS Service"
+        NFSServer["NFS Server Pod"] -- "RWO Mount" --> PVC["PVC openebs-single-replica"];
+    end
+
+    Runner1 -- "RWX Mount" --> NFSServer;
+    Runner2 -- "RWX Mount" --> NFSServer;
+    Runner3 -- "RWX Mount" --> NFSServer;
 ```

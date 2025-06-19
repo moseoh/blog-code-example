@@ -1,0 +1,29 @@
+services:
+  nfs-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nfs-server
+    privileged: true
+    restart: unless-stopped
+    ports:
+      - "1111:111/tcp"
+      - "1111:111/udp"
+      - "2049:2049/tcp"
+      - "2049:2049/udp"
+      - "32765-32767:32765-32767/tcp"
+      - "32765-32767:32765-32767/udp"
+      
+    volumes:
+      - ./exports.txt:/etc/exports:ro
+      - nfs_data:/nfs_share
+      
+    networks:
+      - nfs_server
+
+volumes:
+  nfs_data:
+
+networks:
+  nfs_server:
+    driver: bridge
